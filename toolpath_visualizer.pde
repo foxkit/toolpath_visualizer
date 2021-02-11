@@ -7,13 +7,12 @@ int file_number = 0;
 
 float SCALE_STEP = 1.05;
 
-String design = "d:/carvings-stuff/challahboard-Morales";
-
 String move_file_suffix = "/moves/moves-";
 String opt_file_suffix = "/tmp/opt-moves-";
 
-String move_file_prefix = design + "/moves/moves-";
-String opt_file_prefix =  design + "/tmp/opt-moves-";
+//String move_file_prefix = design + "/moves/moves-";
+//String opt_file_prefix =  design + "/tmp/opt-moves-";
+
 int use_move_files = 1;
 
 
@@ -62,35 +61,54 @@ class NMcoord
 
 ArrayList coordList;
 
+String selectedBaseDir = "";
+String baseDir;
+String moveFile;
+
 void setupCore()
 {
   int i;
   float tempX = 0, tempY = 0, tempZ = 0;
-  if (args != null) 
-  {
-    println(args.length);
-    for (i = 0; i < args.length; i++) 
-    {
-      println(args[i]);
-    }
-  } else 
-  {
-    println("args == null");
-  }  
-  if (args != null)
-  {
-    print("Args[0]:"); print(args[0]); print("  [1]:"); println(args[1]);
-    design = args[0];
-  }
+  //cmd_line = "";
+  //if (args != null) 
+  //{
+  //  println(args.length);
+  //  for (i = 0; i < args.length; i++) 
+  //  {
+  //    cmd_line = cmd_line + " " + args[i];
+  //    println(args[i]);
+  //  }
+  //} else 
+  //{
+  //  cmd_line = "Null";
+  //  println("args == null");
+  //}  
   
-  String name;
+  if (selectedBaseDir == "")
+  {
+    if (args != null)
+    {
+      baseDir = args[0];
+    }
+    else
+    {
+      baseDir = "d:\\carvings-stuff\\challahboard-Maislish";
+    }
+  }
+  else
+  {
+    baseDir = selectedBaseDir;
+  }
+
   coordList = new ArrayList();
   if (use_move_files == 1)
-    name = design + move_file_suffix + nf(file_number,0) + ".txt";
+    moveFile = baseDir + move_file_suffix + nf(file_number,0) + ".txt";
   else
-    name = design + opt_file_suffix  + nf(file_number,0) + ".txt";
-  print("name=");println(name);
-  reader = createReader(name);  
+    moveFile = baseDir + opt_file_suffix  + nf(file_number,0) + ".txt";
+  
+  surface.setTitle(moveFile);
+  print("File: ");println(moveFile);
+  reader = createReader(moveFile);  
   if (reader != null)  
   {
     try 
@@ -168,12 +186,14 @@ void setupCore()
 //  size(displayWidth-100, displayHeight-100, P3D);
 //}
 
+int count = 0;
+ 
 void setupView()
 {
   float t_scale = 0.0;
   float scale_width = width;
   float scale_height = height;
-  surface.setTitle(design);
+  surface.setTitle(str(count++));
   surface.setResizable(true);
   colorMode(RGB, 100, 100, 100);
   print("display=["); print(scale_width); print(","); print(scale_height); println("]");
@@ -199,7 +219,7 @@ void setup()
 {
   //fullScreen(P3D, 1); 
   size(1920, 1080, P3D);
-  surface.setTitle(design);
+  surface.setTitle(moveFile);
   surface.setResizable(true);
   colorMode(RGB, 100, 100, 100);
   f = createFont("Arial",768,true);
@@ -213,6 +233,20 @@ int keyDown = 0;
 int keySeen = 1;
 int keyCodeDown = 0;
 int keyActive = 0;
+
+void folderSelected(File selection)
+{
+  if (selection == null)
+  {
+    println("Window closed or user hit cancel");
+  }
+  else
+  {
+    selectedBaseDir = selection.getAbsolutePath();
+    println("Selected folder: " + selectedBaseDir);
+  }
+  setupCore();
+}
 
 void keyAction()
 {
@@ -263,6 +297,10 @@ void keyAction()
       break;
     case 'u':
       view_angle += 2.5;
+      break;
+    case 'I':
+      selectFolder("Select a design folder:", "folderSelected");
+      keyActive = 0;
       break;
     case 'z':
       res_scale /= SCALE_STEP;
@@ -407,8 +445,8 @@ void draw()
     }
   }
   pop();
-  textFont(f,32);
+  textFont(f,16);
   fill(255,255,255);
-  textAlign(CENTER);
-  text("Here we are", (width/2), (height/2), 0);
+  textAlign(LEFT);
+  text("Move file: " + moveFile, 10, 25, 0);
 }
