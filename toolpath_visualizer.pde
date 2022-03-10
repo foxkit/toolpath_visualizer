@@ -2,6 +2,7 @@ import processing.net.*;
 
 
 import processing.opengl.*;
+import java.util.*;
 
 int file_number = 0;
 
@@ -25,7 +26,12 @@ float max_z = -100000.0;
 
 int move_speed = 0;
 int cut_speed = 0;
-static int min_cut_speed = 20000;
+static int min_cut_speed = 90000;
+static int max_cut_speed = 0;
+static int min_move_speed = 90000;
+static int max_move_speed = 0;
+static int min_speed = 90000;
+static int max_speed = 0;
 
 float res_scale = 1.0;
 
@@ -91,8 +97,8 @@ void setupCore()
       baseDir = args[0];
     }
     else
-    {
-      baseDir = "d:\\carvings-stuff\\challahboard-Maislish";
+    {     
+      baseDir = "e:/carvings-stuff/snowflake4/snowflake-1";
     }
   }
   else
@@ -168,15 +174,32 @@ void setupCore()
             cut_speed = int(speed[1]);
             if (cut_speed < min_cut_speed)
               min_cut_speed = cut_speed;
+            if (cut_speed > max_cut_speed)
+              max_cut_speed = cut_speed;
           }
           else if (line.charAt(1) == 'M')
+          {
             move_speed = int(speed[1]);
+            if (move_speed < min_move_speed)
+              min_move_speed = move_speed;
+            if (move_speed > max_move_speed)
+              max_move_speed = move_speed;
+          }
+          max_speed = max(max_move_speed, max_cut_speed);
+          min_speed = min(min_move_speed, min_cut_speed);
         }
       }
     } catch (IOException e) 
     {
       e.printStackTrace();
       line = null;
+    }
+    try
+    {
+      reader.close();
+    }
+    catch (IOException e)
+    {
     }
   }
 }
@@ -224,6 +247,17 @@ void setup()
   colorMode(RGB, 100, 100, 100);
   f = createFont("Arial",768,true);
   setupView();
+  String spath = sketchPath();
+  print("SPath:");println(spath);
+  String upath = System.getProperty("user.dir");
+  print("UPath:");println(upath);
+  Properties P = System.getProperties();
+  print("Keys:"); 
+  Enumeration<Object> keys = P.keys();
+  while(keys.hasMoreElements())
+  {
+    System.out.println(keys.nextElement());
+  }
 }
 
 int front_limit = 0;
@@ -334,7 +368,6 @@ void keyAction()
       front_limit -= points_to_display/4;
       if (front_limit < 0)
         front_limit = 0;
-      keyActive = 0;
       break;
     case 'a':
       front_limit = 0;
@@ -415,24 +448,39 @@ void draw()
     strokeWeight(0.01);
     int first = 1;
     int item_limit = min(front_limit+points_to_display, coordList.size());
+    int speed_color;
+    int R, G, B;
     for (i = max(0, front_limit); (i < item_limit); i++)
     {
       NMcoord coord;
       coord = (NMcoord) coordList.get(i);
       
+//      if (coord.style == 'C')
+//      {
+//        if (coord.speed == 10000)
+//            stroke(100, 100, 0);
+//        else if (coord.speed == min_cut_speed)
+//            stroke(0, 0, 100);
+//        else
+//            stroke(100, 0, 0);
+//      }
+//      else if ((coord.style == 'M') && (coord.z > -0.01))
+//        stroke(0, 100, 0);
+//      else 
+//        stroke(100, 100, 100);
       if (coord.style == 'C')
       {
-        if (coord.speed == 10000)
-            stroke(100, 100, 0);
-        else if (coord.speed == min_cut_speed)
-            stroke(0, 0, 100);
-        else
-            stroke(100, 0, 0);
+        R = 100;
+        G = 0;
+        B = 100 * (coord.speed - min_speed) / (max_speed - min_speed);
       }
-      else if ((coord.style == 'M') && (coord.z > -0.01))
-        stroke(0, 100, 0);
-      else 
-        stroke(100, 100, 100);
+      else
+      {
+        R = 0;
+        G = 100;
+        B = 100 * (coord.speed - min_speed) / (max_speed - min_speed);
+      }
+      stroke(R, G, B);
       if (first == 0)
       { 
           line(lastX, lastY, lastZ, coord.x, coord.y, coord.z);
