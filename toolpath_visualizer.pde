@@ -98,7 +98,7 @@ void setupCore()
     }
     else
     {     
-      baseDir = "e:/carvings-stuff/snowflake4/snowflake-1";
+      baseDir = "e:/carvings-stuff/Kristin/target";
     }
   }
   else
@@ -468,7 +468,13 @@ void draw()
 //        stroke(0, 100, 0);
 //      else 
 //        stroke(100, 100, 100);
-      if (coord.style == 'C')
+      if (coord.z > 0.0)
+      {
+        R = 100;
+        G = 100;
+        B = 100;
+      }
+      else if (coord.style == 'C')
       {
         R = 100;
         G = 0;
