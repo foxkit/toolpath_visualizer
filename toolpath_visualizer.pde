@@ -4,18 +4,45 @@ import processing.net.*;
 import processing.opengl.*;
 import java.util.*;
 
+//String GLOBAL_BASE = "e:/carvings-stuff/CBCF-TreeOfLife/center";
+//String GLOBAL_BASE = "e:/carvings-stuff/plate-11-2s-web-hex/foo-6";
+//String GLOBAL_BASE = "e:/carvings-stuff/CBCF-plate-devel/ots1";
+//String GLOBAL_BASE = "e:/carvings-stuff/CBCF-plate-devel/onetoolstar-1";
+//String GLOBAL_BASE = "e:/carvings-stuff/plate-11-2s-hex/foo-1";
+//String GLOBAL_BASE = "e:/carvings-stuff/Giraffe-Cavities/cavity-1";
+//String GLOBAL_BASE = "e:/carvings-stuff/CBCF-TreeOfLife3/center";
+//String GLOBAL_BASE = "e:/Carvings-Stuff/Evan-Ring-Box/message-rev5-1";
+//String GLOBAL_BASE = "e:/Carvings-Stuff/Evan-Ring-Box/image-rev5-1";
+//String GLOBAL_BASE = "e:/Carvings-Stuff/Evan-Ring-Box-Cavities/cavity-1";
+//String GLOBAL_BASE = "e:/Carvings-Stuff/Evan-Ring-Box-Cavities/cavity-2";
+//String GLOBAL_BASE = "e:/Carvings-Stuff/HamsaBox/cavities-2";
+//String GLOBAL_BASE = "e:/Carvings-Stuff/HamsaBox-3in/Ani-Dodi-1";
+//String GLOBAL_BASE = "e:/Carvings-Stuff/Boxes-3x4in/Elephant-Simpler4-1";
+//String GLOBAL_BASE = "e:/Carvings-Stuff/CompassCanes/compass-2";
+//String GLOBAL_BASE = "e:/Carvings-Stuff/Boxes-3x4in/LionCub3-1";
+//String GLOBAL_BASE = "e:/Carvings-Stuff/Boxes-3x4in/4x3-2";
+//String GLOBAL_BASE = "e:/Carvings-Stuff/Sue-Virge/center-1";
+//String GLOBAL_BASE = "e:/Carvings-Stuff/CompassCanes/center-1";
+//String GLOBAL_BASE = "e:/Carvings-Stuff/Leo/cb-Leo-6/center";
+//String GLOBAL_BASE = "e:/Carvings-Stuff/Emunah-RKP/center-1";
+//String GLOBAL_BASE = "e:/Carvings-Stuff/HoshaiahCane/blank-back";
+//String GLOBAL_BASE = "e:/Carvings-Stuff/HoshaiahCane/center-1";
+String GLOBAL_BASE = "e:/Carvings-Stuff/KyleScott/4in5x3in5-1";
+
+float WEIGHT_CONSTANT = 2.0;
+
+int use_tool_file = 0;
+int use_ngc_file = 0;
+
 int file_number = 0;
+int tool_selector[] = { 101, 102, 103, 104, 105, 106, 108, 112, 116, 604, 1308, 616, 1000 };
 
 float SCALE_STEP = 1.05;
 
 String move_file_suffix = "/moves/moves-";
-String opt_file_suffix = "/tmp/opt-moves-";
-
-//String move_file_prefix = design + "/moves/moves-";
-//String opt_file_prefix =  design + "/tmp/opt-moves-";
+String opt_file_suffix  = "/tmp/opt-moves-";
 
 int use_move_files = 1;
-
 
 float min_x =  100000.0;
 float max_x = -100000.0;
@@ -70,25 +97,13 @@ ArrayList coordList;
 String selectedBaseDir = "";
 String baseDir;
 String moveFile;
+String suffix;
+String prefix;
 
 void setupCore()
 {
   int i;
-  float tempX = 0, tempY = 0, tempZ = 0;
-  //cmd_line = "";
-  //if (args != null) 
-  //{
-  //  println(args.length);
-  //  for (i = 0; i < args.length; i++) 
-  //  {
-  //    cmd_line = cmd_line + " " + args[i];
-  //    println(args[i]);
-  //  }
-  //} else 
-  //{
-  //  cmd_line = "Null";
-  //  println("args == null");
-  //}  
+  float tempX = 0, tempY = 0, tempZ = 0; 
   
   if (selectedBaseDir == "")
   {
@@ -98,7 +113,7 @@ void setupCore()
     }
     else
     {     
-      baseDir = "e:/carvings-stuff/Kristin/target";
+      baseDir = GLOBAL_BASE;
     }
   }
   else
@@ -107,92 +122,222 @@ void setupCore()
   }
 
   coordList = new ArrayList();
+  
   if (use_move_files == 1)
-    moveFile = baseDir + move_file_suffix + nf(file_number,0) + ".txt";
+    prefix = baseDir + move_file_suffix;
   else
-    moveFile = baseDir + opt_file_suffix  + nf(file_number,0) + ".txt";
+    prefix = baseDir + opt_file_suffix;
+    
+  if (use_ngc_file == 1)
+    suffix = ".ngc";
+  else
+    suffix = ".txt";
+    
+  if (use_tool_file == 1)
+  {
+    moveFile = prefix + "tool-" + nf(tool_selector[file_number],0) + suffix;
+  }
+  else
+  {
+    moveFile = prefix + nf(file_number,0) + suffix;
+  }
   
   surface.setTitle(moveFile);
   print("File: ");println(moveFile);
   reader = createReader(moveFile);  
   if (reader != null)  
   {
-    try 
+    if (use_ngc_file == 1)
     {
-      line = reader.readLine();
-      for (i = 0, line = reader.readLine(); 
-           // (i < 10000000) && 
-             (line != null);
-           i++, line = reader.readLine())
+      try 
       {
-        if (line == null)
-          break;
-        if (line.length() < 2)
-          continue;
-        if ((i % 10000) == 0)
+        float X, Y, Z, F;
+        X = -10000.0;
+        Y = -10000.0;
+        Z = -10000.0;
+        F = -10000.0;
+        line = reader.readLine();
+        for (i = 0, line = reader.readLine(); 
+             // (i < 10000000) && 
+               (line != null);
+             i++, line = reader.readLine())
         {
-          print(i); print(" -> "); println(coordList.size());
-        }
-        if ((line.charAt(0) != '#') &&
-            (line.charAt(0) != 'P') &&
-            (line.charAt(0) != 'S')
-           )
-        {
-          String[] coords = splitTokens(line, " ");
-          int speed;
-          tempX = float(coords[1]) * 1.0;
-          if (min_x > tempX)
-            min_x = tempX;
-          if (max_x < tempX)
-            max_x = tempX;
-          tempY = float(coords[2]) * 1.0;
-          if (min_y > tempY)
-            min_y = tempY;
-          if (max_y < tempY)
-            max_y = tempY;
-          tempZ = float(coords[3]) * 1.0;
-          if (min_z > tempZ)
-            min_z = tempZ;
-          if (max_z < tempZ)
-            max_z = tempZ;
-          if (coords[0].charAt(0) == 'M')
-            speed = move_speed;
+          if (line == null)
+            break;
+          if (line.length() < 2)
+            continue;
+          if ((i % 10000) == 0)
+          {
+            print(i); print(" G-> "); println(coordList.size());
+          }
+          if (line.charAt(0) == '(')
+          {
+            // do nothing
+          }
+          else if ((line.charAt(0) == 'G') &&
+                   (line.charAt(1) == '1'))
+          {
+            String[] numbers = splitTokens(line, "GXYZAF ");
+            String[] labels  = splitTokens(line, "-0123456789. ");
+            int speed;
+            // println("labels[0][0..2] = " + labels[0].charAt(0) + labels[0].charAt(1) + labels[0].charAt(2));
+            if (labels.length != numbers.length)
+            {
+              println("l.l=" + labels.length + 
+                      "  != n.l=" + numbers.length + 
+                      "  line=\"" + line + "\"");
+            }
+            else if ((labels.length > 0) && 
+                     (labels[0].charAt(0) == 'G') &&
+                     (numbers[0].charAt(0) == '1'))
+            {
+              if (labels.length > 1)
+              {
+                if (labels[1].charAt(0) == 'X')
+                  X = float(numbers[1]);
+                if (labels[1].charAt(0) == 'Y')
+                  Y = float(numbers[1]);
+                if (labels[1].charAt(0) == 'Z')
+                  Z = float(numbers[1]);
+                if (labels[1].charAt(0) == 'F')
+                  F = float(numbers[1]);
+              }
+              if (labels.length > 2)
+              {
+                if (labels[2].charAt(0) == 'X')
+                  X = float(numbers[2]);
+                if (labels[2].charAt(0) == 'Y')
+                  Y = float(numbers[2]);
+                if (labels[2].charAt(0) == 'Z')
+                  Z = float(numbers[2]);
+                if (labels[2].charAt(0) == 'F')
+                  F = float(numbers[2]);
+              }
+              if (labels.length > 3)
+              {
+                if (labels[3].charAt(0) == 'X')
+                  X = float(numbers[3]);
+                if (labels[3].charAt(0) == 'Y')
+                  Y = float(numbers[3]);
+                if (labels[3].charAt(0) == 'Z')
+                  Z = float(numbers[3]);
+                if (labels[3].charAt(0) == 'F')
+                  F = float(numbers[3]);
+              }
+              if (labels.length > 4)
+              {
+                if (labels[4].charAt(0) == 'X')
+                  X = float(numbers[4]);
+                if (labels[4].charAt(0) == 'Y')
+                  Y = float(numbers[4]);
+                if (labels[4].charAt(0) == 'Z')
+                  Z = float(numbers[4]);
+                if (labels[4].charAt(0) == 'F')
+                  F = float(numbers[4]);
+              }
+              speed = (int)(10000*(F/60.0));
+              coordList.add(new NMcoord('C', (int)(10000*(F/60.0)), X, -Y, Z, i));
+              max_speed = max(max_move_speed, max_cut_speed);
+              min_speed = min(min_move_speed, min_cut_speed);
+            }
+            else
+            {
+              println("Should have been G1 l.l=" + labels.length + 
+                      "  n.l=" + numbers.length + 
+                      "  line=\"" + line + "\"");
+              println("labels[0][0..2] = " + labels[0].charAt(0) + labels[0].charAt(1) + labels[0].charAt(2));
+            }
+          }
           else
-            speed = cut_speed;
-          coordList.add(new NMcoord(coords[0].charAt(0), speed, tempX, -tempY, tempZ, i));
-        }
-        else if ((line != null) &&
-                 (line.charAt(0) != '#') &&
-                 (line.charAt(0) != 'P') &&
-                 (line.charAt(0) == 'S') &&
-                 ((line.charAt(1) == 'C') ||
-                  (line.charAt(1) == 'M')) )
-        {
-          String[] speed = splitTokens(line, " ");
-          if (line.charAt(1) == 'C')
           {
-            cut_speed = int(speed[1]);
-            if (cut_speed < min_cut_speed)
-              min_cut_speed = cut_speed;
-            if (cut_speed > max_cut_speed)
-              max_cut_speed = cut_speed;
+            //println("Other code: " + line);
           }
-          else if (line.charAt(1) == 'M')
-          {
-            move_speed = int(speed[1]);
-            if (move_speed < min_move_speed)
-              min_move_speed = move_speed;
-            if (move_speed > max_move_speed)
-              max_move_speed = move_speed;
-          }
-          max_speed = max(max_move_speed, max_cut_speed);
-          min_speed = min(min_move_speed, min_cut_speed);
         }
+      } catch (IOException e) 
+      {
+        e.printStackTrace();
+        line = null;
       }
-    } catch (IOException e) 
+    }
+    else
     {
-      e.printStackTrace();
-      line = null;
+      try 
+      {
+        line = reader.readLine();
+        for (i = 0, line = reader.readLine(); 
+             // (i < 10000000) && 
+               (line != null);
+             i++, line = reader.readLine())
+        {
+          if (line == null)
+            break;
+          if (line.length() < 2)
+            continue;
+          if ((i % 10000) == 0)
+          {
+            print(i); print(" -> "); println(coordList.size());
+          }
+          if ((line.charAt(0) != '#') &&
+              (line.charAt(0) != 'P') &&
+              (line.charAt(0) != 'S')
+             )
+          {
+            String[] coords = splitTokens(line, " ");
+            int speed;
+            tempX = float(coords[1]) * 1.0;
+            if (min_x > tempX)
+              min_x = tempX;
+            if (max_x < tempX)
+              max_x = tempX;
+            tempY = float(coords[2]) * 1.0;
+            if (min_y > tempY)
+              min_y = tempY;
+            if (max_y < tempY)
+              max_y = tempY;
+            tempZ = float(coords[3]) * 1.0;
+            if (min_z > tempZ)
+              min_z = tempZ;
+            if (max_z < tempZ)
+              max_z = tempZ;
+            if (coords[0].charAt(0) == 'M')
+              speed = move_speed;
+            else
+              speed = cut_speed;
+            coordList.add(new NMcoord(coords[0].charAt(0), speed, tempX, -tempY, tempZ, i));
+          }
+          else if ((line != null) &&
+                   (line.charAt(0) != '#') &&
+                   (line.charAt(0) != 'P') &&
+                   (line.charAt(0) == 'S') &&
+                   ((line.charAt(1) == 'C') ||
+                    (line.charAt(1) == 'M')) )
+          {
+            String[] speed = splitTokens(line, " ");
+            if (line.charAt(1) == 'C')
+            {
+              cut_speed = int(speed[1]);
+              if (cut_speed < min_cut_speed)
+                min_cut_speed = cut_speed;
+              if (cut_speed > max_cut_speed)
+                max_cut_speed = cut_speed;
+            }
+            else if (line.charAt(1) == 'M')
+            {
+              move_speed = int(speed[1]);
+              if (move_speed < min_move_speed)
+                min_move_speed = move_speed;
+              if (move_speed > max_move_speed)
+                max_move_speed = move_speed;
+            }
+            max_speed = max(max_move_speed, max_cut_speed);
+            min_speed = min(min_move_speed, min_cut_speed);
+          }
+        }
+      } catch (IOException e) 
+      {
+        e.printStackTrace();
+        line = null;
+      }
     }
     try
     {
@@ -374,6 +519,24 @@ void keyAction()
       points_to_display = coordList.size();
       keyActive = 0;
       break;
+    case 'G':
+      use_ngc_file = 1;
+      setupCore();
+      keyActive = 0;
+      break;
+    case 'g':
+      use_ngc_file = 0;
+      setupCore();
+      keyActive = 0;
+      break;
+    case 'T': 
+      use_tool_file = 1;
+      keyActive = 0;
+      break;
+    case 't':
+      use_tool_file = 0;
+      keyActive = 0;
+      break;
     case CODED:
       print("Coded: "); println(keyCodeDown);
       switch (keyCodeDown)
@@ -445,7 +608,10 @@ void draw()
     rotateX(radians(view_angle));
     // Slowly rotate plate
     // rotateZ(frameCount * PI/600);
-    strokeWeight(0.01);
+//    strokeWeight(0.01);
+    strokeWeight(WEIGHT_CONSTANT/res_scale);
+    strokeCap(ROUND);
+    strokeJoin(ROUND);
     int first = 1;
     int item_limit = min(front_limit+points_to_display, coordList.size());
     int speed_color;
@@ -478,7 +644,10 @@ void draw()
       {
         R = 100;
         G = 0;
-        B = 100 * (coord.speed - min_speed) / (max_speed - min_speed);
+        if (max_speed == min_speed)
+          B = 50;
+        else
+          B = 100 * (coord.speed - min_speed) / (max_speed - min_speed);
       }
       else
       {
