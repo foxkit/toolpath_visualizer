@@ -27,7 +27,21 @@ import java.util.*;
 //String GLOBAL_BASE = "e:/Carvings-Stuff/Emunah-RKP/center-1";
 //String GLOBAL_BASE = "e:/Carvings-Stuff/HoshaiahCane/blank-back";
 //String GLOBAL_BASE = "e:/Carvings-Stuff/HoshaiahCane/center-1";
-String GLOBAL_BASE = "e:/Carvings-Stuff/KyleScott/4in5x3in5-1";
+//String GLOBAL_BASE = "e:/Carvings-Stuff/KyleScott/4in5x3in5-1";
+//String GLOBAL_BASE = "e:/Carvings-Stuff/Marcy-baby/text-1";
+//String GLOBAL_BASE = "e:/Carvings-Stuff/Marcy-baby/center-1";
+//String GLOBAL_BASE = "e:/Carvings-Stuff/David-Verge/back-2";
+//String GLOBAL_BASE = "e:/Carvings-Stuff/David-Verge/front-2";
+//String GLOBAL_BASE = "e:/Carvings-Stuff/test/test-2";
+//String GLOBAL_BASE = "e:/Carvings-Stuff/Marcy-2/center-1";
+//String GLOBAL_BASE = "e:/Carvings-Stuff/CBC-TreeOfLife5/center";
+//String GLOBAL_BASE = "e:/Carvings-Stuff/Sheila/center-1";
+//String GLOBAL_BASE = "e:/Carvings-Stuff/convectionplate/frontrecess-1";
+//String GLOBAL_BASE = "e:/Carvings-Stuff/Earl/2x6";
+//String GLOBAL_BASE = "e:/Carvings-Stuff/convectionplate/frontrecess-hexagon-1";
+String GLOBAL_BASE = "e:/Carvings-Stuff/CBCF-thinstar/star-web-1";
+//String GLOBAL_BASE = "e:/Carvings-Stuff/CBCF-thinstar/star-web-UO";
+
 
 float WEIGHT_CONSTANT = 2.0;
 
@@ -39,8 +53,12 @@ int tool_selector[] = { 101, 102, 103, 104, 105, 106, 108, 112, 116, 604, 1308, 
 
 float SCALE_STEP = 1.05;
 
+//String move_file_suffix = "/opt-moves-";
 String move_file_suffix = "/moves/moves-";
+//String opt_file_suffix  = "/opt-moves-";
 String opt_file_suffix  = "/tmp/opt-moves-";
+
+String trace_file = "C:/temp/visualizer_in.txt";
 
 int use_move_files = 1;
 
@@ -68,8 +86,11 @@ float y_shift = 0.0;
 float z_shift = 0.0;
 float view_angle = 0.0;
 
+int colorDisplayMode = 0;  // 0 = speed/style, 1 = movement-type (Z plane / Z-only / 3D)
+float COORD_EPSILON = 0.0001;
 
 BufferedReader reader;
+PrintWriter writer;
 String line;
 
 PFont f;
@@ -112,7 +133,7 @@ void setupCore()
       baseDir = args[0];
     }
     else
-    {     
+    { 
       baseDir = GLOBAL_BASE;
     }
   }
@@ -143,7 +164,7 @@ void setupCore()
   }
   
   surface.setTitle(moveFile);
-  print("File: ");println(moveFile);
+  writer = createWriter(trace_file);
   reader = createReader(moveFile);  
   if (reader != null)  
   {
@@ -157,6 +178,8 @@ void setupCore()
         Z = -10000.0;
         F = -10000.0;
         line = reader.readLine();
+        writer.print(line);
+        // text(line, 10, 25, 0);
         for (i = 0, line = reader.readLine(); 
              // (i < 10000000) && 
                (line != null);
@@ -273,7 +296,7 @@ void setupCore()
             break;
           if (line.length() < 2)
             continue;
-          if ((i % 10000) == 0)
+          if ((i % 100) == 0)
           {
             print(i); print(" -> "); println(coordList.size());
           }
@@ -537,6 +560,10 @@ void keyAction()
       use_tool_file = 0;
       keyActive = 0;
       break;
+    case 'm':
+      colorDisplayMode = (colorDisplayMode + 1) % 2;
+      keyActive = 0;
+      break;
     case CODED:
       print("Coded: "); println(keyCodeDown);
       switch (keyCodeDown)
@@ -616,29 +643,57 @@ void draw()
     int item_limit = min(front_limit+points_to_display, coordList.size());
     int speed_color;
     int R, G, B;
+    if (front_limit > 0)
+    {
+      NMcoord prevCoord = (NMcoord) coordList.get(front_limit - 1);
+      lastX = prevCoord.x;
+      lastY = prevCoord.y;
+      lastZ = prevCoord.z;
+    }
     for (i = max(0, front_limit); (i < item_limit); i++)
     {
       NMcoord coord;
       coord = (NMcoord) coordList.get(i);
       
-//      if (coord.style == 'C')
-//      {
-//        if (coord.speed == 10000)
-//            stroke(100, 100, 0);
-//        else if (coord.speed == min_cut_speed)
-//            stroke(0, 0, 100);
-//        else
-//            stroke(100, 0, 0);
-//      }
-//      else if ((coord.style == 'M') && (coord.z > -0.01))
-//        stroke(0, 100, 0);
-//      else 
-//        stroke(100, 100, 100);
-      if (coord.z > 0.0)
+      if ((colorDisplayMode == 0) && (coord.z > 0.0))
       {
         R = 100;
         G = 100;
         B = 100;
+      }
+      else if (colorDisplayMode == 1)
+      {
+        float deltaX = abs(coord.x - lastX);
+        float deltaY = abs(coord.y - lastY);
+        float deltaZ = abs(coord.z - lastZ);
+        boolean sameZ = (deltaZ < COORD_EPSILON);
+        boolean sameXY = (deltaX < COORD_EPSILON && deltaY < COORD_EPSILON);
+        boolean zChanges = (deltaZ >= COORD_EPSILON);
+        boolean xyChanges = (deltaX >= COORD_EPSILON || deltaY >= COORD_EPSILON);
+        if (sameZ)
+        {
+          R = 0;
+          G = 0;
+          B = 100;
+        }
+        else if (sameXY)
+        {
+          R = 0;
+          G = 100;
+          B = 0;
+        }
+        else if (zChanges && xyChanges)
+        {
+          R = 100;
+          G = 0;
+          B = 100;
+        }
+        else
+        {
+          R = 100;
+          G = 100;
+          B = 100;
+        }
       }
       else if (coord.style == 'C')
       {
@@ -672,4 +727,5 @@ void draw()
   fill(255,255,255);
   textAlign(LEFT);
   text("Move file: " + moveFile, 10, 25, 0);
+  text("Color: " + (colorDisplayMode == 0 ? "speed/style" : "movement-type (m to toggle)"), 10, 45, 0);
 }
