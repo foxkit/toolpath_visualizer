@@ -49,9 +49,29 @@ sudo apt-get install -y openjdk-17-jdk libgl1 libglu1-mesa \
   libx11-6 libxi6 libxrandr2 libxrender1 libxxf86vm1 libxcursor1 libxinerama1
 ```
 
+### Install the launcher (required)
+
+Copy the repo script into your PATH as `run_toolpath_visualizer` (no `.sh`):
+
+```bash
+mkdir -p ~/.local/bin
+cp /path/to/toolpath_visualizer/run_toolpath_visualizer.sh ~/.local/bin/run_toolpath_visualizer
+chmod +x ~/.local/bin/run_toolpath_visualizer
+# ensure ~/.local/bin is on PATH (add to ~/.bashrc if needed):
+#   export PATH="$HOME/.local/bin:$PATH"
+```
+
+The installed command looks for the sketch at `~/repos/toolpath_visualizer` by default (or next to the script when run from the repo). Override with `TOOLPATH_VISUALIZER_HOME` if your checkout lives elsewhere. Override Processing with `PROCESSING` if needed.
+
 ### Launch the sketch
 
-IDE:
+Required path (job dir becomes Processing `args[0]`):
+
+```bash
+run_toolpath_visualizer ~/E/carvings-stuff/Malamut-Anniversary/center-1
+```
+
+IDE (optional):
 
 ```bash
 ~/processing-4.5.6/bin/Processing /path/to/toolpath_visualizer
@@ -59,7 +79,7 @@ IDE:
 
 Then open the sketch and Run, or pass the job folder via the sketch arguments field.
 
-CLI (preferred for a known job folder; `args[0]` becomes the base dir):
+Raw CLI equivalent:
 
 ```bash
 ~/processing-4.5.6/bin/Processing cli \
@@ -68,20 +88,12 @@ CLI (preferred for a known job folder; `args[0]` becomes the base dir):
   $HOME/E/carvings-stuff/Malamut-Anniversary/center-1
 ```
 
-Helper script (same thing; job dir is required):
-
-```bash
-./run_toolpath_visualizer.sh ~/E/carvings-stuff/Malamut-Anniversary/center-1
-```
-
-Override the Processing binary with `PROCESSING=/path/to/Processing` if needed.
-
 On Linux, if you omit `args[0]`, `GLOBAL_BASE` defaults to `~/E/carvings-stuff/CBCF-thinstar/star-web-1`. Trace output goes to `$TMPDIR/visualizer_in.txt` (usually `/tmp/visualizer_in.txt`).
 
 ### Fixture check (Linux-TANK)
 
 ```bash
-./run_toolpath_visualizer.sh ~/E/carvings-stuff/Malamut-Anniversary/center-1
+run_toolpath_visualizer ~/E/carvings-stuff/Malamut-Anniversary/center-1
 ```
 
 Expect a P3D window with the toolpath drawn; number keys switch passes.
