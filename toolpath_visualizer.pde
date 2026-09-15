@@ -146,6 +146,394 @@ String moveFile;
 String suffix;
 String prefix;
 
+// Job stage navigation ([ / ]): absolute paths of sibling stage folders.
+ArrayList stageDirs = new ArrayList();
+int stageIndex = -1;
+String stageLabel = "";
+
+// Pass discovery for +/- clamp: sorted file_number values that exist on disk.
+ArrayList passNumbers = new ArrayList();
+
+String jobParentOf(String dir)
+{
+  File f = new File(dir);
+  File parent = f.getParentFile();
+  if (parent == null)
+    return "";
+  return parent.getAbsolutePath();
+}
+
+String leafName(String dir)
+{
+  return new File(dir).getName();
+}
+
+// Minimal job.json scan: collect stages[]."prefix" string values in order.
+ArrayList extractJobPrefixes(String jobJsonPath)
+{
+  ArrayList prefixes = new ArrayList();
+  String[] lines = loadStrings(jobJsonPath);
+  if (lines == null)
+    return prefixes;
+  StringBuilder sb = new StringBuilder();
+  for (int i = 0; i < lines.length; i++)
+    sb.append(lines[i]).append('\n');
+  String content = sb.toString();
+  int idx = 0;
+  while (true)
+  {
+    int key = content.indexOf("\"prefix\"", idx);
+    if (key < 0)
+      break;
+    int colon = content.indexOf(':', key + 8);
+    if (colon < 0)
+      break;
+    int q1 = content.indexOf('"', colon + 1);
+    if (q1 < 0)
+      break;
+    int q2 = content.indexOf('"', q1 + 1);
+    if (q2 < 0)
+      break;
+    String value = content.substring(q1 + 1, q2);
+    if (value.length() > 0)
+      prefixes.add(value);
+    idx = q2 + 1;
+  }
+  return prefixes;
+}
+
+boolean stageDirUsable(File stageDir)
+{
+  if (stageDir == null || !stageDir.isDirectory())
+    return false;
+  File moves = new File(stageDir, "moves");
+  return moves.isDirectory();
+}
+
+void discoverStages()
+{
+  stageDirs = new ArrayList();
+  stageIndex = -1;
+  stageLabel = "";
+  if (baseDir == null || baseDir.length() == 0)
+    return;
+
+  String jobRoot = jobParentOf(baseDir);
+  if (jobRoot.length() == 0)
+    return;
+
+  File jobJson = new File(jobRoot, "job.json");
+  ArrayList candidates = new ArrayList();
+
+  if (jobJson.isFile())
+  {
+    ArrayList prefixes = extractJobPrefixes(jobJson.getAbsolutePath());
+    for (int i = 0; i < prefixes.size(); i++)
+    {
+      String pfx = (String) prefixes.get(i);
+      File stageDir = new File(jobRoot, pfx);
+      // Skip recipe-none / missing dirs; prefer stages that have moves/.
+      if (stageDirUsable(stageDir) || stageDir.isDirectory())
+        candidates.add(stageDir.getAbsolutePath());
+    }
+    // Prefer entries that have moves/; if any do, drop those without.
+    ArrayList withMoves = new ArrayList();
+    for (int i = 0; i < candidates.size(); i++)
+    {
+      String path = (String) candidates.get(i);
+      if (stageDirUsable(new File(path)))
+        withMoves.add(path);
+    }
+    if (withMoves.size() > 0)
+      candidates = withMoves;
+  }
+
+  if (candidates.size() == 0)
+  {
+    // Fallback: siblings matching same stem "name-N", sorted by N.
+    String leaf = leafName(baseDir);
+    int dash = leaf.lastIndexOf('-');
+    if (dash > 0)
+    {
+      String stem = leaf.substring(0, dash);
+      String numPart = leaf.substring(dash + 1);
+      boolean numeric = numPart.length() > 0;
+      for (int i = 0; i < numPart.length(); i++)
+      {
+        if (numPart.charAt(i) < '0' || numPart.charAt(i) > '9')
+        {
+          numeric = false;
+          break;
+        }
+      }
+      if (numeric)
+      {
+        File parent = new File(jobRoot);
+        File[] kids = parent.listFiles();
+        ArrayList nums = new ArrayList();
+        ArrayList paths = new ArrayList();
+        if (kids != null)
+        {
+          for (int i = 0; i < kids.length; i++)
+          {
+            if (!kids[i].isDirectory())
+              continue;
+            String n = kids[i].getName();
+            if (!n.startsWith(stem + "-"))
+              continue;
+            String rest = n.substring(stem.length() + 1);
+            boolean ok = rest.length() > 0;
+            for (int j = 0; j < rest.length(); j++)
+            {
+              if (rest.charAt(j) < '0' || rest.charAt(j) > '9')
+              {
+                ok = false;
+                break;
+              }
+            }
+            if (!ok)
+              continue;
+            int nVal = int(rest);
+            // insert sorted by N
+            int insertAt = nums.size();
+            for (int k = 0; k < nums.size(); k++)
+            {
+              if (nVal < ((Integer) nums.get(k)).intValue())
+              {
+                insertAt = k;
+                break;
+              }
+            }
+            nums.add(insertAt, Integer.valueOf(nVal));
+            paths.add(insertAt, kids[i].getAbsolutePath());
+          }
+        }
+        candidates = paths;
+      }
+    }
+  }
+
+  stageDirs = candidates;
+  String baseAbs = new File(baseDir).getAbsolutePath();
+  for (int i = 0; i < stageDirs.size(); i++)
+  {
+    String p = (String) stageDirs.get(i);
+    if (new File(p).getAbsolutePath().equals(baseAbs))
+    {
+      stageIndex = i;
+      break;
+    }
+  }
+  if (stageIndex < 0 && stageDirs.size() > 0)
+  {
+    // Current dir not in list (e.g. opened a non-stage folder); keep index unset.
+    stageLabel = leafName(baseDir);
+  }
+  else if (stageIndex >= 0)
+  {
+    stageLabel = leafName((String) stageDirs.get(stageIndex));
+  }
+  else
+  {
+    stageLabel = leafName(baseDir);
+  }
+  print("stages="); print(stageDirs.size());
+  print(" index="); print(stageIndex);
+  print(" label="); println(stageLabel);
+}
+
+void discoverPasses()
+{
+  passNumbers = new ArrayList();
+  if (baseDir == null || baseDir.length() == 0)
+    return;
+
+  if (use_ngc_file == 1)
+    suffix = ".ngc";
+  else
+    suffix = ".txt";
+
+  if (use_tool_file == 1)
+  {
+    String dirPrefix;
+    if (use_move_files == 1)
+      dirPrefix = baseDir + move_file_suffix;
+    else
+      dirPrefix = baseDir + opt_file_suffix;
+    for (int i = 0; i < tool_selector.length; i++)
+    {
+      String path = dirPrefix + "tool-" + nf(tool_selector[i], 0) + suffix;
+      if (new File(path).isFile())
+        passNumbers.add(Integer.valueOf(i));
+    }
+  }
+  else
+  {
+    File scanDir;
+    String filePrefix;
+    if (use_move_files == 1)
+    {
+      scanDir = new File(baseDir, "moves");
+      filePrefix = "moves-";
+    }
+    else
+    {
+      scanDir = new File(baseDir, "tmp");
+      filePrefix = "opt-moves-";
+    }
+    File[] files = scanDir.listFiles();
+    if (files != null)
+    {
+      for (int i = 0; i < files.length; i++)
+      {
+        if (!files[i].isFile())
+          continue;
+        String name = files[i].getName();
+        if (!name.startsWith(filePrefix) || !name.endsWith(suffix))
+          continue;
+        // Skip tool-named files in moves mode (moves-tool-101.txt).
+        String mid = name.substring(filePrefix.length(), name.length() - suffix.length());
+        if (mid.startsWith("tool-"))
+          continue;
+        boolean ok = mid.length() > 0;
+        for (int j = 0; j < mid.length(); j++)
+        {
+          if (mid.charAt(j) < '0' || mid.charAt(j) > '9')
+          {
+            ok = false;
+            break;
+          }
+        }
+        if (!ok)
+          continue;
+        int nVal = int(mid);
+        int insertAt = passNumbers.size();
+        for (int k = 0; k < passNumbers.size(); k++)
+        {
+          if (nVal < ((Integer) passNumbers.get(k)).intValue())
+          {
+            insertAt = k;
+            break;
+          }
+        }
+        // de-dupe
+        boolean exists = false;
+        for (int k = 0; k < passNumbers.size(); k++)
+        {
+          if (((Integer) passNumbers.get(k)).intValue() == nVal)
+          {
+            exists = true;
+            break;
+          }
+        }
+        if (!exists)
+          passNumbers.add(insertAt, Integer.valueOf(nVal));
+      }
+    }
+  }
+  print("passes="); println(passNumbers.size());
+}
+
+int passListIndexOf(int n)
+{
+  for (int i = 0; i < passNumbers.size(); i++)
+  {
+    if (((Integer) passNumbers.get(i)).intValue() == n)
+      return i;
+  }
+  return -1;
+}
+
+void clampFileNumberToPasses()
+{
+  if (passNumbers.size() == 0)
+    return;
+  if (passListIndexOf(file_number) >= 0)
+    return;
+  // Snap to nearest existing pass (prefer lower, then first).
+  int best = ((Integer) passNumbers.get(0)).intValue();
+  int bestDist = abs(best - file_number);
+  for (int i = 1; i < passNumbers.size(); i++)
+  {
+    int n = ((Integer) passNumbers.get(i)).intValue();
+    int d = abs(n - file_number);
+    if (d < bestDist)
+    {
+      best = n;
+      bestDist = d;
+    }
+  }
+  file_number = best;
+}
+
+void stepPass(int delta)
+{
+  discoverPasses();
+  if (passNumbers.size() == 0)
+  {
+    // Fallback: unbounded-ish but floor at 0.
+    file_number = max(0, file_number + delta);
+    return;
+  }
+  int idx = passListIndexOf(file_number);
+  if (idx < 0)
+  {
+    clampFileNumberToPasses();
+    idx = passListIndexOf(file_number);
+  }
+  if (idx < 0)
+    return;
+  int next = idx + delta;
+  if (next < 0)
+    next = 0;
+  if (next >= passNumbers.size())
+    next = passNumbers.size() - 1;
+  file_number = ((Integer) passNumbers.get(next)).intValue();
+}
+
+void goToStage(int delta)
+{
+  discoverStages();
+  if (stageDirs.size() == 0)
+  {
+    println("No sibling stages found");
+    return;
+  }
+  int idx = stageIndex;
+  if (idx < 0)
+    idx = 0;
+  idx += delta;
+  if (idx < 0)
+    idx = 0;
+  if (idx >= stageDirs.size())
+    idx = stageDirs.size() - 1;
+  if (idx == stageIndex && stageIndex >= 0)
+    return;
+  selectedBaseDir = (String) stageDirs.get(idx);
+  stageIndex = idx;
+  stageLabel = leafName(selectedBaseDir);
+  file_number = 0;
+  front_limit = 0;
+  println("Stage -> " + selectedBaseDir);
+  setupView();
+}
+
+void resetBounds()
+{
+  min_x =  100000.0;
+  max_x = -100000.0;
+  min_y =  100000.0;
+  max_y = -100000.0;
+  min_z =  100000.0;
+  max_z = -100000.0;
+  min_cut_speed = 90000;
+  max_cut_speed = 0;
+  min_move_speed = 90000;
+  max_move_speed = 0;
+  min_speed = 90000;
+  max_speed = 0;
+}
+
 void setupCore()
 {
   int i;
@@ -169,6 +557,10 @@ void setupCore()
   }
   print("baseDir="); println(baseDir);
 
+  resetBounds();
+  discoverStages();
+  discoverPasses();
+
   coordList = new ArrayList();
   
   if (use_move_files == 1)
@@ -190,7 +582,10 @@ void setupCore()
     moveFile = prefix + nf(file_number,0) + suffix;
   }
   
-  surface.setTitle(moveFile);
+  String title = moveFile;
+  if (stageDirs.size() > 0 && stageIndex >= 0)
+    title = stageLabel + " [" + (stageIndex + 1) + "/" + stageDirs.size() + "]  " + moveFile;
+  surface.setTitle(title);
   writer = createWriter(trace_file);
   reader = createReader(moveFile);  
   if (reader != null)  
@@ -473,9 +868,11 @@ void folderSelected(File selection)
   else
   {
     selectedBaseDir = selection.getAbsolutePath();
+    file_number = 0;
+    front_limit = 0;
     println("Selected folder: " + selectedBaseDir);
   }
-  setupCore();
+  setupView();
 }
 
 void keyAction()
@@ -502,23 +899,32 @@ void keyAction()
       break;
     case '+':
     case '=':
-      file_number ++;
+      stepPass(1);
       setupCore();
       keyActive = 0;
       break;
     case '-':
-      if (file_number > 0)
-        file_number --;
+      stepPass(-1);
       setupCore();
+      keyActive = 0;
+      break;
+    case '[':
+      goToStage(-1);
+      keyActive = 0;
+      break;
+    case ']':
+      goToStage(1);
       keyActive = 0;
       break;
     case 'O':
       use_move_files = 0;
+      file_number = 0;
       setupCore();
       keyActive = 0;
       break;
     case 'o':
       use_move_files = 1;
+      file_number = 0;
       setupCore();
       keyActive = 0;
       break;
@@ -572,20 +978,26 @@ void keyAction()
       break;
     case 'G':
       use_ngc_file = 1;
+      file_number = 0;
       setupCore();
       keyActive = 0;
       break;
     case 'g':
       use_ngc_file = 0;
+      file_number = 0;
       setupCore();
       keyActive = 0;
       break;
     case 'T': 
       use_tool_file = 1;
+      file_number = 0;
+      setupCore();
       keyActive = 0;
       break;
     case 't':
       use_tool_file = 0;
+      file_number = 0;
+      setupCore();
       keyActive = 0;
       break;
     case 'm':
@@ -754,6 +1166,19 @@ void draw()
   textFont(f,16);
   fill(255,255,255);
   textAlign(LEFT);
-  text("Move file: " + moveFile, 10, 25, 0);
-  text("Color: " + (colorDisplayMode == 0 ? "speed/style" : "movement-type (m to toggle)"), 10, 45, 0);
+  String stageHud;
+  if (stageDirs.size() > 0 && stageIndex >= 0)
+    stageHud = "Stage: " + stageLabel + " (" + (stageIndex + 1) + "/" + stageDirs.size() + ")  [ ]";
+  else
+    stageHud = "Stage: " + stageLabel + " (no siblings)";
+  int passIdx = passListIndexOf(file_number);
+  String passHud;
+  if (passNumbers.size() > 0 && passIdx >= 0)
+    passHud = "Pass: " + file_number + " (" + (passIdx + 1) + "/" + passNumbers.size() + ")  +/-";
+  else
+    passHud = "Pass: " + file_number;
+  text(stageHud, 10, 25, 0);
+  text(passHud, 10, 45, 0);
+  text("Move file: " + moveFile, 10, 65, 0);
+  text("Color: " + (colorDisplayMode == 0 ? "speed/style" : "movement-type (m to toggle)"), 10, 85, 0);
 }

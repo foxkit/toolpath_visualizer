@@ -6,11 +6,15 @@ One sketch (`toolpath_visualizer.pde`) runs on **Windows 10** and **Linux** (Ubu
 
 ## Controls (same on both platforms)
 
-- `0`–`9` / `+` `-`: switch move file index
-- arrow keys: pan; `z`/`Z`: zoom; `r`/`R`: tilt
+- `[` / `]`: previous / next **job stage** folder (sibling under the job root)
+  - If the parent directory has `job.json`, stages come from `stages[].prefix` (directories that exist; prefer those with `moves/`; recipe-none stages without a dir are skipped)
+  - Otherwise: siblings matching the same `name-N` stem, sorted by `N`
+- `0`–`9`: jump to move-file index when `N` &lt; 10
+- `+` / `-`: previous / next pass among discovered `moves/moves-*.txt` (or opt / tool / `.ngc` variants per mode); clamped to files that exist on disk
+- arrow keys: pan; `z`/`Z`: zoom; `u`/`d`: tilt
 - `c` / `a` / `f` / `b`: recenter / show all / page forward / back
-- `m`: toggle color mode; `o`: open folder chooser
-- `g`/`G`: moves vs NGC; `t`/`T`: tool-file naming
+- `m`: toggle color mode; `I`: folder chooser
+- `g`/`G`: moves vs NGC; `t`/`T`: tool-file naming; `o`/`O`: moves vs opt-moves
 
 ## Windows
 
@@ -96,4 +100,4 @@ On Linux, if you omit `args[0]`, `GLOBAL_BASE` defaults to `~/E/carvings-stuff/C
 run_toolpath_visualizer ~/E/carvings-stuff/Malamut-Anniversary/center-1
 ```
 
-Expect a P3D window with the toolpath drawn; number keys switch passes.
+Expect a P3D window with the toolpath drawn. HUD shows stage prefix and index. `]` / `[` hop `center-1` ↔ `center-2` (from parent `job.json`). `+` / `-` walk `moves-0` … `moves-12` inside the stage.
