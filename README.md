@@ -68,15 +68,20 @@ CLI (preferred for a known job folder; `args[0]` becomes the base dir):
   $HOME/E/carvings-stuff/Malamut-Anniversary/center-1
 ```
 
+Helper script (same thing; job dir is required):
+
+```bash
+./run_toolpath_visualizer.sh ~/E/carvings-stuff/Malamut-Anniversary/center-1
+```
+
+Override the Processing binary with `PROCESSING=/path/to/Processing` if needed.
+
 On Linux, if you omit `args[0]`, `GLOBAL_BASE` defaults to `~/E/carvings-stuff/CBCF-thinstar/star-web-1`. Trace output goes to `$TMPDIR/visualizer_in.txt` (usually `/tmp/visualizer_in.txt`).
 
 ### Fixture check (Linux-TANK)
 
 ```bash
-~/processing-4.5.6/bin/Processing cli \
-  --sketch=$HOME/repos/toolpath_visualizer \
-  --run \
-  $HOME/E/carvings-stuff/Malamut-Anniversary/center-1
+./run_toolpath_visualizer.sh ~/E/carvings-stuff/Malamut-Anniversary/center-1
 ```
 
 Expect a P3D window with the toolpath drawn; number keys switch passes.
