@@ -58,9 +58,28 @@ String move_file_suffix = "/moves/moves-";
 //String opt_file_suffix  = "/opt-moves-";
 String opt_file_suffix  = "/tmp/opt-moves-";
 
+// Trace/debug writer path: Windows C:/temp, Linux java.io.tmpdir (set in initPlatformPaths)
 String trace_file = "C:/temp/visualizer_in.txt";
 
 int use_move_files = 1;
+
+// Soften platform-specific defaults without breaking Windows.
+void initPlatformPaths()
+{
+  if (platform == WINDOWS)
+  {
+    trace_file = "C:/temp/visualizer_in.txt";
+  }
+  else
+  {
+    String tmp = System.getProperty("java.io.tmpdir");
+    if (!tmp.endsWith("/") && !tmp.endsWith("\\"))
+      tmp += "/";
+    trace_file = tmp + "visualizer_in.txt";
+  }
+  print("platform="); print(platform);
+  print("trace_file="); println(trace_file);
+}
 
 float min_x =  100000.0;
 float max_x = -100000.0;
@@ -296,7 +315,7 @@ void setupCore()
             break;
           if (line.length() < 2)
             continue;
-          if ((i % 100) == 0)
+          if ((i % 10000) == 0)
           {
             print(i); print(" -> "); println(coordList.size());
           }
@@ -410,6 +429,7 @@ void setup()
 {
   //fullScreen(P3D, 1); 
   size(1920, 1080, P3D);
+  initPlatformPaths();
   surface.setTitle(moveFile);
   surface.setResizable(true);
   colorMode(RGB, 100, 100, 100);
