@@ -718,7 +718,7 @@ void setupCore()
             break;
           if (line.length() < 2)
             continue;
-          if ((i % 100) == 0)
+          if ((i % 10000) == 0)
           {
             print(i); print(" -> "); println(coordList.size());
           }
