@@ -39,6 +39,8 @@ import java.util.*;
 //String GLOBAL_BASE = "e:/Carvings-Stuff/convectionplate/frontrecess-1";
 //String GLOBAL_BASE = "e:/Carvings-Stuff/Earl/2x6";
 //String GLOBAL_BASE = "e:/Carvings-Stuff/convectionplate/frontrecess-hexagon-1";
+// Default carving folder when no args[0] / folder selection is provided.
+// Windows keeps the historical drive-letter path; Linux uses ~/E/... (TANK layout).
 String GLOBAL_BASE = "e:/Carvings-Stuff/CBCF-thinstar/star-web-1";
 //String GLOBAL_BASE = "e:/Carvings-Stuff/CBCF-thinstar/star-web-UO";
 
@@ -58,9 +60,32 @@ String move_file_suffix = "/moves/moves-";
 //String opt_file_suffix  = "/opt-moves-";
 String opt_file_suffix  = "/tmp/opt-moves-";
 
+// Trace/debug writer path: Windows C:/temp, Linux java.io.tmpdir (set in initPlatformPaths)
 String trace_file = "C:/temp/visualizer_in.txt";
 
 int use_move_files = 1;
+
+// Soften platform-specific defaults without breaking Windows.
+// Prefer args[0] (see setupCore) or folder selection over GLOBAL_BASE.
+void initPlatformPaths()
+{
+  if (platform == WINDOWS)
+  {
+    GLOBAL_BASE = "e:/Carvings-Stuff/CBCF-thinstar/star-web-1";
+    trace_file = "C:/temp/visualizer_in.txt";
+  }
+  else
+  {
+    GLOBAL_BASE = System.getProperty("user.home") + "/E/carvings-stuff/CBCF-thinstar/star-web-1";
+    String tmp = System.getProperty("java.io.tmpdir");
+    if (!tmp.endsWith("/") && !tmp.endsWith("\\"))
+      tmp += "/";
+    trace_file = tmp + "visualizer_in.txt";
+  }
+  print("platform="); print(platform);
+  print(" GLOBAL_BASE="); println(GLOBAL_BASE);
+  print("trace_file="); println(trace_file);
+}
 
 float min_x =  100000.0;
 float max_x = -100000.0;
@@ -126,9 +151,10 @@ void setupCore()
   int i;
   float tempX = 0, tempY = 0, tempZ = 0; 
   
+  // Resolution order: folder UI selection, then CLI args[0], then GLOBAL_BASE.
   if (selectedBaseDir == "")
   {
-    if (args != null)
+    if (args != null && args.length > 0 && args[0] != null && args[0].length() > 0)
     {
       baseDir = args[0];
     }
@@ -141,6 +167,7 @@ void setupCore()
   {
     baseDir = selectedBaseDir;
   }
+  print("baseDir="); println(baseDir);
 
   coordList = new ArrayList();
   
@@ -410,6 +437,7 @@ void setup()
 {
   //fullScreen(P3D, 1); 
   size(1920, 1080, P3D);
+  initPlatformPaths();
   surface.setTitle(moveFile);
   surface.setResizable(true);
   colorMode(RGB, 100, 100, 100);
